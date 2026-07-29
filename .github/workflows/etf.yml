@@ -1,0 +1,36 @@
+name: ETF Investment Assistant
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+
+  workflow_dispatch:
+
+
+jobs:
+
+  run-etf:
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+
+    - name: Install packages
+      run: |
+        pip install akshare pandas requests openpyxl
+
+
+    - name: Run ETF monitor
+      run: |
+        python investment_alert.py
