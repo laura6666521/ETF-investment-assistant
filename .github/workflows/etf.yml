@@ -1,13 +1,15 @@
 name: ETF Investment Assistant
 
 on:
- schedule:
 
-  # 上午交易时间
-  - cron: "30,40,50 1 * * 1-5"
+  schedule:
 
-  # 下午交易时间
-  - cron: "0,10,20,30,40,50 5,6 * * 1-5"
+    # 上午交易时间
+    - cron: "30,40,50 1 * * 1-5"
+
+    # 下午交易时间
+    - cron: "0,10,20,30,40,50 5,6 * * 1-5"
+
 
   workflow_dispatch:
 
@@ -21,21 +23,24 @@ jobs:
 
     steps:
 
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.13"
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
 
-    - name: Install packages
-      run: |
-        pip install akshare pandas requests openpyxl
+      - name: Install packages
+        run: |
+          pip install akshare requests
 
 
-    - name: Run ETF monitor
-      run: |
-        python investment_alert.py
+      - name: Run ETF Assistant
+        env:
+          SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
+
+        run: |
+          python investment_alert.py
