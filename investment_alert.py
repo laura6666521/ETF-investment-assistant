@@ -3,96 +3,10 @@ import json
 import os
 import requests
 from datetime import datetime
+from config import RULES
 
-
-# =========================
-# 配置
-# =========================
 
 RECORD_FILE = "record.json"
-
-
-# =========================
-# 监控标的
-# =========================
-
-RULES = {
-
-    "中证A500": {
-
-        "类型": "指数",
-
-        "代码": "000510",
-
-        "加仓规则": [
-            {
-                "价格": 5500,
-                "金额": 500
-            },
-            {
-                "价格": 5211,
-                "金额": 1000
-            }
-        ]
-
-    },
-
-
-    "沪深300": {
-
-        "类型": "指数",
-
-        "代码": "000300",
-
-        "加仓规则": [
-            {
-                "价格": 4466,
-                "金额": 500
-            },
-            {
-                "价格": 4231,
-                "金额": 1000
-            }
-        ]
-
-    },
-
-
-    "电力ETF广发": {
-
-        "类型": "ETF",
-
-        "代码": "159611",
-
-        "加仓规则": [
-            {
-                "价格": 1.0041,
-                "金额": 500
-            }
-        ]
-
-    },
-
-
-    "煤炭ETF国泰": {
-
-        "类型": "观察",
-
-        "代码": "515220"
-
-    },
-
-
-    "红利低波50ETF南方": {
-
-        "类型": "观察",
-
-        "代码": "515450"
-
-    }
-
-}
-
 
 
 # =========================
@@ -137,7 +51,7 @@ record = load_record()
 
 
 # =========================
-# 微信提醒
+# Server酱微信提醒
 # =========================
 
 def send_wechat(title, content):
@@ -180,6 +94,7 @@ def send_wechat(title, content):
             timeout=10
         )
 
+
         print(
             "微信通知已发送"
         )
@@ -195,7 +110,7 @@ def send_wechat(title, content):
 
 
 # =========================
-# 获取ETF价格
+# 获取ETF实时行情
 # =========================
 
 def get_etf_price(code):
@@ -212,68 +127,85 @@ def get_etf_price(code):
 
         if len(row) > 0:
 
-            return float(
+            price = float(
                 row.iloc[0]["最新价"]
             )
+
+            change = float(
+                row.iloc[0]["涨跌幅"]
+            )
+
+
+            return price, change
 
 
     except Exception as e:
 
         print(
-            "ETF获取失败:",
+            "ETF行情获取失败:",
             e
         )
 
 
-    return None
+    return None, None
 
 
 
 # =========================
-# 获取指数价格
+# 获取指数实时行情
 # =========================
 
 def get_index_price(code):
 
     try:
 
-        df = ak.stock_zh_index_daily(
-            symbol="sh" + code
-        )
+        df = ak.stock_zh_index_spot_em()
 
 
-        if len(df) > 0:
+        row = df[
+            df["代码"] == code
+        ]
 
-            return float(
-                df.iloc[-1]["close"]
+
+        if len(row) > 0:
+
+            price = float(
+                row.iloc[0]["最新价"]
             )
+
+
+            change = float(
+                row.iloc[0]["涨跌幅"]
+            )
+
+
+            return price, change
 
 
     except Exception as e:
 
         print(
-            "指数获取失败:",
+            "指数行情获取失败:",
             e
         )
 
 
-    return None
+    return None, None
 
 
 
 # =========================
-# 观察ETF
+# 观察类ETF
 # =========================
 
 def watch_etf(name, info):
 
-    price = get_etf_price(
+    price, change = get_etf_price(
         info["代码"]
     )
 
 
     print("--------------------")
-
     print(name)
 
 
@@ -289,6 +221,13 @@ def watch_etf(name, info):
     print(
         "当前价格:",
         price
+    )
+
+
+    print(
+        "今日涨跌:",
+        change,
+        "%"
     )
 
 
@@ -304,24 +243,24 @@ def watch_etf(name, info):
 
 def check_rule(name, info):
 
+
     if info["类型"] == "指数":
 
-        price = get_index_price(
+        price, change = get_index_price(
             info["代码"]
         )
 
+
     else:
 
-        price = get_etf_price(
+        price, change = get_etf_price(
             info["代码"]
         )
 
 
 
     print("--------------------")
-
     print(name)
-
 
 
     if price is None:
@@ -340,6 +279,13 @@ def check_rule(name, info):
     )
 
 
+    print(
+        "今日涨跌:",
+        change,
+        "%"
+    )
+
+
 
     for rule in info["加仓规则"]:
 
@@ -351,8 +297,10 @@ def check_rule(name, info):
 
         key = (
             name
-            + "_"
-            + str(target)
+            +
+            "_"
+            +
+            str(target)
         )
 
 
@@ -374,6 +322,8 @@ def check_rule(name, info):
 
 
 
+        # 达到买点
+
         if price <= target:
 
 
@@ -389,24 +339,37 @@ def check_rule(name, info):
             )
 
 
+
             send_wechat(
 
                 "🚨 ETF加仓提醒",
 
                 f"""
+## ETF加仓信号
+
+标的：
 {name}
 
-当前价格:
+当前价格：
 {price}
 
-触发目标:
-{target}
+今日涨跌：
+{change}%
 
-建议加仓:
-{money}元
+触发条件：
+≤ {target}
+
+建议操作：
+加仓 {money} 元
+
+时间：
+{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+策略：
+下跌分批加仓
 """
-
             )
+
 
 
             record[key] = month
@@ -415,11 +378,13 @@ def check_rule(name, info):
 
 
 
+        # 接近买点2%
+
         elif price <= target * 1.02:
 
 
             distance = round(
-                (price-target)
+                (price - target)
                 /
                 target
                 *
@@ -433,6 +398,13 @@ def check_rule(name, info):
                 distance,
                 "%"
             )
+
+
+            print(
+                "目标:",
+                target
+            )
+
 
 
         else:
@@ -450,7 +422,9 @@ def check_rule(name, info):
 # 主程序
 # =========================
 
+
 now = datetime.now()
+
 
 print(
     "ETF投资助手",
@@ -458,22 +432,33 @@ print(
 )
 
 
-current = now.strftime(
+current_time = now.strftime(
     "%H:%M"
 )
 
 
-# 非交易时间
 
-if not (
-    "09:30" <= current <= "11:30"
+# 交易时间判断
+
+market_time = (
+
+    "09:30" <= current_time <= "11:30"
+
     or
-    "13:00" <= current <= "15:00"
-):
+
+    "13:00" <= current_time <= "15:00"
+
+)
+
+
+
+if not market_time:
+
 
     print(
         "⏸ 当前非交易时间"
     )
+
 
 else:
 
@@ -483,10 +468,12 @@ else:
     )
 
 
+
     for name, info in RULES.items():
 
 
         if info["类型"] == "观察":
+
 
             watch_etf(
                 name,
@@ -495,6 +482,7 @@ else:
 
 
         else:
+
 
             check_rule(
                 name,
