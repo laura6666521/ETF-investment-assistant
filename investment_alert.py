@@ -1,8 +1,10 @@
 import akshare as ak
+import requests
 import json
 import os
-import requests
 from datetime import datetime
+
+
 from config import RULES
 
 
@@ -51,11 +53,11 @@ record = load_record()
 
 
 # =========================
-# Server酱微信提醒
+# 微信推送 Server酱
 # =========================
 
 def send_wechat(title, content):
-    print("正在发送微信:", title)
+
     key = os.getenv(
         "SERVERCHAN_KEY"
     )
@@ -64,7 +66,7 @@ def send_wechat(title, content):
     if not key:
 
         print(
-            "没有配置SERVERCHAN_KEY"
+            "没有配置 SERVERCHAN_KEY"
         )
 
         return
@@ -88,32 +90,102 @@ def send_wechat(title, content):
 
     try:
 
-        requests.post(
+        r = requests.post(
             url,
             data=data,
             timeout=10
         )
 
 
-        print(
-            "微信通知已发送"
-        )
+        if r.status_code == 200:
+
+            print(
+                "微信通知发送成功"
+            )
+
+        else:
+
+            print(
+                "微信发送失败",
+                r.text
+            )
 
 
     except Exception as e:
 
         print(
-            "微信发送失败:",
+            "微信发送异常:",
             e
         )
 
 
 
 # =========================
-# 获取ETF实时行情
+# 获取指数行情
 # =========================
 
-def get_etf_price(code):
+def get_index_data(code):
+
+    try:
+
+        df = ak.index_zh_a_hist(
+            symbol=code,
+            period="daily",
+            start_date="20260701",
+            end_date=datetime.now().strftime("%Y%m%d")
+        )
+
+
+        if len(df) > 0:
+
+            today = df.iloc[-1]
+
+
+            price = float(
+                today["收盘"]
+            )
+
+
+            if len(df) >= 2:
+
+                yesterday = float(
+                    df.iloc[-2]["收盘"]
+                )
+
+                change = round(
+                    (price - yesterday)
+                    /
+                    yesterday
+                    *
+                    100,
+                    2
+                )
+
+            else:
+
+                change = 0
+
+
+            return price, change
+
+
+    except Exception as e:
+
+        print(
+            "指数获取失败:",
+            e
+        )
+
+
+    return None, None
+
+
+
+# =========================
+# 获取ETF行情
+# =========================
+
+def get_etf_data(code):
 
     try:
 
@@ -127,47 +199,6 @@ def get_etf_price(code):
 
         if len(row) > 0:
 
-            price = float(
-                row.iloc[0]["最新价"]
-            )
-
-            change = float(
-                row.iloc[0]["涨跌幅"]
-            )
-
-
-            return price, change
-
-
-    except Exception as e:
-
-        print(
-            "ETF行情获取失败:",
-            e
-        )
-
-
-    return None, None
-
-
-
-# =========================
-# 获取指数实时行情
-# =========================
-
-def get_index_price(code):
-
-    try:
-
-        df = ak.stock_zh_index_spot_em()
-
-
-        row = df[
-            df["代码"] == code
-        ]
-
-
-        if len(row) > 0:
 
             price = float(
                 row.iloc[0]["最新价"]
@@ -185,7 +216,7 @@ def get_index_price(code):
     except Exception as e:
 
         print(
-            "指数行情获取失败:",
+            "ETF获取失败:",
             e
         )
 
@@ -195,95 +226,189 @@ def get_index_price(code):
 
 
 # =========================
-# 观察类ETF
+# 获取价格
 # =========================
 
-def watch_etf(name, info):
-
-    price, change = get_etf_price(
-        info["代码"]
-    )
-
-
-    print("--------------------")
-    print(name)
-
-
-    if price is None:
-
-        print(
-            "获取失败"
-        )
-
-        return
-
-
-    print(
-        "当前价格:",
-        price
-    )
-
-
-    print(
-        "今日涨跌:",
-        change,
-        "%"
-    )
-
-
-    print(
-        "状态: 仅观察"
-    )
-
-
-
-# =========================
-# 检查加仓规则
-# =========================
-
-def check_rule(name, info):
-
+def get_price_data(info):
 
     if info["类型"] == "指数":
 
-        price, change = get_index_price(
+        return get_index_data(
             info["代码"]
         )
-
 
     else:
 
-        price, change = get_etf_price(
+        return get_etf_data(
             info["代码"]
         )
+# =========================
+# 生成ETF报告
+# =========================
+
+def create_report():
+
+    now = datetime.now()
+
+    report = f"""
+📊 ETF投资助手
+
+时间：
+{now.strftime("%Y-%m-%d %H:%M")}
+
+====================
+"""
+
+
+    for name, info in RULES.items():
+
+
+        price, change = get_price_data(info)
+
+
+        if price is None:
+
+            report += f"""
+{name}
+
+行情获取失败
+
+--------------------
+"""
+
+            continue
 
 
 
-    print("--------------------")
-    print(name)
+        if change >= 0:
+
+            change_text = "+" + str(change) + "%"
+
+        else:
+
+            change_text = str(change) + "%"
 
 
-    if price is None:
 
-        print(
-            "获取失败"
-        )
+        report += f"""
+{name}
+
+当前价格：
+{price}
+
+今日涨跌：
+{change_text}
+"""
+
+
+
+        # 观察类ETF
+
+        if info["类型"] == "观察":
+
+            report += """
+
+状态：
+观察
+
+--------------------
+"""
+
+            continue
+
+
+
+        report += "\n"
+
+
+
+        # 判断买点状态
+
+        status = "等待"
+
+
+
+        for rule in info["加仓规则"]:
+
+            target = rule["价格"]
+
+
+            if price <= target:
+
+                status = (
+                    "🚨 已达到加仓点 "
+                    + str(target)
+                )
+
+                break
+
+
+
+            elif price <= target * 1.02:
+
+                status = (
+                    "⚠️ 接近买点 "
+                    + str(target)
+                )
+
+
+
+        report += f"""
+买点：
+
+"""
+
+        for rule in info["加仓规则"]:
+
+            report += (
+                str(rule["价格"])
+                +
+                "（"
+                +
+                str(rule["金额"])
+                +
+                "元） "
+            )
+
+
+        report += f"""
+
+状态：
+{status}
+
+
+--------------------
+"""
+
+
+    return report
+
+
+
+
+# =========================
+# 检查买点提醒
+# =========================
+
+def check_buy_signal(name, info):
+
+
+    if info["类型"] == "观察":
 
         return
 
 
 
-    print(
-        "当前价格:",
-        price
-    )
+    price, change = get_price_data(info)
 
 
-    print(
-        "今日涨跌:",
-        change,
-        "%"
-    )
+    if price is None:
+
+        return
+
+
+
+    today_month = datetime.now().strftime("%Y-%m")
 
 
 
@@ -304,19 +429,10 @@ def check_rule(name, info):
         )
 
 
-        month = datetime.now().strftime(
-            "%Y-%m"
-        )
 
+        # 防止重复提醒
 
-
-        if record.get(key) == month:
-
-            print(
-                "目标:",
-                target,
-                "本月已提醒"
-            )
+        if record.get(key) == today_month:
 
             continue
 
@@ -327,163 +443,78 @@ def check_rule(name, info):
         if price <= target:
 
 
-            print(
-                "🚨 达到加仓条件"
-            )
-
-
-            print(
-                "建议加仓:",
-                money,
-                "元"
-            )
-
-
-
             send_wechat(
 
                 "🚨 ETF加仓提醒",
 
                 f"""
-## ETF加仓信号
-
-标的：
 {name}
 
 当前价格：
 {price}
 
-今日涨跌：
-{change}%
+触发买点：
+{target}
 
-触发条件：
-≤ {target}
-
-建议操作：
-加仓 {money} 元
-
-时间：
-{datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
-
-策略：
-下跌分批加仓
+建议加仓：
+{money}元
 """
+
             )
 
 
-
-            record[key] = month
+            record[key] = today_month
 
             save_record(record)
 
 
 
-        # 接近买点2%
-
-        elif price <= target * 1.02:
-
-
-            distance = round(
-                (price - target)
-                /
-                target
-                *
-                100,
-                2
-            )
-
-
-            print(
-                "⚠️ 接近买点",
-                distance,
-                "%"
-            )
-
-
-            print(
-                "目标:",
-                target
-            )
-
-
-
-        else:
-
-
-            print(
-                "目标:",
-                target,
-                "等待"
-            )
-
-          
 # =========================
 # 主程序
 # =========================
 
 
-now = datetime.now()
+if __name__ == "__main__":
 
 
-print(
-    "ETF投资助手",
-    now
-)
-
-
-current_time = now.strftime(
-    "%H:%M"
-)
-
-
-
-# 交易时间判断
-
-market_time = (
-
-    "09:30" <= current_time <= "11:30"
-
-    or
-
-    "13:00" <= current_time <= "15:00"
-
-)
-
-
-
-if not market_time:
+    now = datetime.now()
 
 
     print(
-        "⏸ 当前非交易时间"
+        "ETF投资助手",
+        now
     )
 
 
-else:
+
+    # 每次运行发送行情报告
+
+    report = create_report()
 
 
-    print(
-        "📈 市场交易中，开始监控"
+
+    send_wechat(
+
+        "ETF投资助手",
+
+        report
+
     )
 
 
+
+    # 检查买点
 
     for name, info in RULES.items():
 
 
-        if info["类型"] == "观察":
+        check_buy_signal(
+            name,
+            info
+        )
 
 
-            watch_etf(
-                name,
-                info
-            )
 
-
-        else:
-
-
-            check_rule(
-                name,
-                info
-            )
+    print(
+        report
+    )
