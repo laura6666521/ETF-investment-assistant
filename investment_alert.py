@@ -416,7 +416,15 @@ def check_rule(name, info):
                 "等待"
             )
 
+           send_wechat(
+    "ETF助手测试",
+    """
+ETF投资助手测试消息
 
+如果收到：
+说明GitHub → Server酱 → 微信正常
+"""
+)
 
 # =========================
 # 主程序
