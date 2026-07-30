@@ -221,7 +221,7 @@ def get_index_data(code):
 
         elif code == "000300.CSI":
 
-            symbol = "sz399300"
+            symbol = "sh000300"
 
 
         else:
@@ -245,10 +245,14 @@ def get_index_data(code):
         text = response.text
 
 
-        print("腾讯返回:", text)
+	print("腾讯返回:", repr(text))
 
 
-        data = text.split("~")
+	data = text.split("~")
+
+	print("字段数量:", len(data))
+
+	print("字段内容:", data)
 
 
         if len(data) < 6:
