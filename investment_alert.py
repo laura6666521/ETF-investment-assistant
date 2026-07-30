@@ -2,6 +2,7 @@ import akshare as ak
 import requests
 import json
 import os
+
 from datetime import datetime, timezone, timedelta
 
 from config import RULES
@@ -17,20 +18,10 @@ RECORD_FILE = "record.json"
 def china_time():
 
     return (
-        datetime.now(
-            timezone.utc
-        )
+        datetime.now(timezone.utc)
         +
         timedelta(hours=8)
     )
-
-
-
-# =========================
-# ETF行情缓存
-# =========================
-
-ETF_CACHE = None
 
 
 
@@ -52,7 +43,7 @@ def load_record():
 
                 return json.load(f)
 
-        except:
+        except Exception:
 
             return {}
 
@@ -113,6 +104,7 @@ def send_wechat(title, content):
     )
 
 
+
     data = {
 
         "title": title,
@@ -122,12 +114,18 @@ def send_wechat(title, content):
     }
 
 
+
     try:
 
+
         response = requests.post(
+
             url,
+
             data=data,
+
             timeout=10
+
         )
 
 
@@ -147,6 +145,7 @@ def send_wechat(title, content):
 
     except Exception as e:
 
+
         print(
             "微信发送异常:",
             e
@@ -155,14 +154,18 @@ def send_wechat(title, content):
 
 
 # =========================
-# 获取ETF实时行情
+# ETF实时行情
 # =========================
+
+
+ETF_CACHE = None
+
+
 
 def get_etf_data(code):
 
 
     global ETF_CACHE
-
 
 
     try:
@@ -172,7 +175,7 @@ def get_etf_data(code):
 
 
             print(
-                "正在获取ETF实时行情..."
+                "获取ETF实时行情..."
             )
 
 
@@ -181,7 +184,9 @@ def get_etf_data(code):
 
 
         row = ETF_CACHE[
+
             ETF_CACHE["代码"] == code
+
         ]
 
 
@@ -190,12 +195,16 @@ def get_etf_data(code):
 
 
             price = float(
+
                 row.iloc[0]["最新价"]
+
             )
 
 
             change = float(
+
                 row.iloc[0]["涨跌幅"]
+
             )
 
 
@@ -207,68 +216,137 @@ def get_etf_data(code):
 
 
         print(
-            "ETF获取失败:",
+
+            "ETF行情获取失败:",
+
             e
+
         )
 
 
 
     return None, None
-
-
-
 # =========================
-# 获取指数行情
+# 指数实时行情（新浪）
 # =========================
 
 def get_index_data(code):
 
-
     try:
 
 
-        df = ak.index_zh_a_hist(
-            symbol=code,
-            period="daily",
-            start_date="20260101",
-            end_date=china_time().strftime("%Y%m%d")
+        if code == "000510":
+
+            symbol = "sz000510"
+
+
+        elif code == "000300":
+
+            symbol = "sh000300"
+
+
+        else:
+
+            print(
+                "未知指数代码:",
+                code
+            )
+
+            return None, None
+
+
+
+        url = (
+            "https://hq.sinajs.cn/list="
+            +
+            symbol
+        )
+
+
+        headers = {
+
+            "Referer":
+            "https://finance.sina.com.cn"
+
+        }
+
+
+
+        response = requests.get(
+
+            url,
+
+            headers=headers,
+
+            timeout=10
+
         )
 
 
 
-        if len(df) > 0:
+        text = response.text
 
 
-            price = float(
-                df.iloc[-1]["收盘"]
+
+        if '"' not in text:
+
+            print(
+                "新浪返回为空"
             )
 
-
-            if len(df) >= 2:
-
-
-                yesterday = float(
-                    df.iloc[-2]["收盘"]
-                )
-
-
-                change = round(
-                    (price-yesterday)
-                    /
-                    yesterday
-                    *
-                    100,
-                    2
-                )
-
-
-            else:
-
-                change = 0
+            return None, None
 
 
 
-            return price, change
+        data = text.split('"')[1].split(",")
+
+
+
+        if len(data) < 4:
+
+            return None, None
+
+
+
+        price = float(
+
+            data[3]
+
+        )
+
+
+        yesterday = float(
+
+            data[2]
+
+        )
+
+
+
+        if yesterday == 0:
+
+            return None, None
+
+
+
+        change = round(
+
+            (price - yesterday)
+
+            /
+
+            yesterday
+
+            *
+
+            100,
+
+            2
+
+        )
+
+
+        return price, change
 
 
 
@@ -276,13 +354,16 @@ def get_index_data(code):
 
 
         print(
-            "指数获取失败:",
+
+            "新浪指数行情失败:",
+
             e
+
         )
 
 
+        return None, None
 
-    return None, None
 
 
 
@@ -297,7 +378,9 @@ def get_price(info):
 
 
         return get_index_data(
+
             info["代码"]
+
         )
 
 
@@ -305,10 +388,16 @@ def get_price(info):
 
 
         return get_etf_data(
+
             info["代码"]
+
         )
+
+
+
+
 # =========================
-# 生成微信日报
+# 生成日报
 # =========================
 
 def create_report():
@@ -318,7 +407,7 @@ def create_report():
 
 
     report = f"""
-📊 ETF投资助手
+📊 ETF投资助手 {now.strftime("%H:%M")}
 
 时间：
 {now.strftime("%Y-%m-%d %H:%M")}
@@ -339,6 +428,7 @@ def create_report():
 
 
             report += f"""
+
 {name}
 
 行情获取失败
@@ -353,19 +443,29 @@ def create_report():
         if change >= 0:
 
             change_text = (
+
                 "+"
+
                 +
-                str(change)
+
+                str(round(change,2))
+
                 +
+
                 "%"
+
             )
 
         else:
 
             change_text = (
-                str(change)
+
+                str(round(change,2))
+
                 +
+
                 "%"
+
             )
 
 
@@ -379,12 +479,13 @@ def create_report():
 
 今日涨跌：
 {change_text}
+
 """
 
 
 
         # =====================
-        # 观察类ETF
+        # 观察类
         # =====================
 
         if info["类型"] == "观察":
@@ -403,7 +504,7 @@ def create_report():
 
 
         # =====================
-        # 买点判断
+        # 买点状态
         # =====================
 
         status = "等待买点"
@@ -421,9 +522,13 @@ def create_report():
 
 
                 status = (
+
                     "🚨 已达到买点 "
+
                     +
+
                     str(target)
+
                 )
 
                 break
@@ -434,9 +539,13 @@ def create_report():
 
 
                 status = (
+
                     "⚠️ 接近买点 "
+
                     +
+
                     str(target)
+
                 )
 
 
@@ -444,6 +553,7 @@ def create_report():
         report += """
 
 买点：
+
 """
 
 
@@ -452,13 +562,21 @@ def create_report():
 
 
             report += (
+
                 str(rule["价格"])
+
                 +
+
                 "（"
+
                 +
+
                 str(rule["金额"])
+
                 +
+
                 "元） "
+
             )
 
 
@@ -474,11 +592,6 @@ def create_report():
 
 
     return report
-
-
-
-
-
 # =========================
 # 买点提醒
 # =========================
@@ -500,12 +613,20 @@ def check_buy_signal(name, info):
 
     if price is None:
 
+
+        print(
+            name,
+            "行情失败，跳过提醒"
+        )
+
         return
 
 
 
+    # 每天提醒一次
+
     today = china_time().strftime(
-        "%Y-%m"
+        "%Y-%m-%d"
     )
 
 
@@ -520,16 +641,22 @@ def check_buy_signal(name, info):
 
 
         key = (
+
             name
+
             +
+
             "_"
+
             +
+
             str(target)
+
         )
 
 
 
-        # 本月已经提醒
+        # 今天已经提醒
 
         if record.get(key) == today:
 
@@ -547,20 +674,29 @@ def check_buy_signal(name, info):
                 "🚨 ETF加仓提醒",
 
                 f"""
+
 {name}
 
+
 当前价格：
+
 {price}
 
+
+
 触发买点：
+
 {target}
 
+
+
 建议加仓：
+
 {money}元
+
 """
 
             )
-
 
 
             record[key] = today
@@ -579,15 +715,24 @@ def check_buy_signal(name, info):
                 "⚠️ ETF接近买点提醒",
 
                 f"""
+
 {name}
 
+
 当前价格：
+
 {price}
 
+
+
 目标买点：
+
 {target}
 
+
+
 请关注
+
 """
 
             )
@@ -596,6 +741,11 @@ def check_buy_signal(name, info):
             record[key] = today
 
             save_record(record)
+
+
+
+
+
 # =========================
 # 主程序
 # =========================
@@ -607,13 +757,49 @@ if __name__ == "__main__":
 
 
     print(
-        "ETF投资助手",
-        now
+        "ETF投资助手启动"
+    )
+
+
+    print(
+        "北京时间:",
+        now.strftime("%Y-%m-%d %H:%M")
     )
 
 
 
+    # =====================
+    # 检查买点
+    # =====================
+
+    print(
+        "检查买点..."
+    )
+
+
+
+    for name, info in RULES.items():
+
+
+        check_buy_signal(
+
+            name,
+
+            info
+
+        )
+
+
+
+    # =====================
     # 生成日报
+    # =====================
+
+    print(
+        "生成日报..."
+    )
+
+
 
     report = create_report()
 
@@ -625,24 +811,22 @@ if __name__ == "__main__":
 
 
 
-    # 微信发送日报
+    # =====================
+    # 发送日报
+    # =====================
+
 
     send_wechat(
 
-        "ETF投资助手",
+        "ETF投资助手 "
+        +
+        now.strftime("%H:%M"),
 
         report
 
     )
 
 
-
-    # 检查买点
-
-    for name, info in RULES.items():
-
-
-        check_buy_signal(
-            name,
-            info
-        )
+    print(
+        "ETF投资助手运行完成"
+    )
