@@ -204,150 +204,81 @@ def get_etf_data(code):
 
 
 # =========================
-# 新浪指数行情
+# 腾讯指数行情
 # =========================
 
 def get_index_data(code):
 
     try:
 
-        print(
-            "获取指数实时行情..."
-        )
+        print("获取指数行情...")
 
 
-        symbol_map = {
+        if code == "000510.CSI":
 
-            "000510.CSI": "sh000510",   # 中证A500
-
-            "1B0300.SH": "sh000300"    # 沪深300
-
-        }
+            symbol = "sh000510"
 
 
-        if code not in symbol_map:
+        elif code == "000300.CSI":
 
-            print(
-                "未知指数代码:",
-                code
-            )
+            symbol = "sh000300"
+
+
+        else:
 
             return None, None
 
 
-        symbol = symbol_map[code]
-
-
         url = (
-            "https://hq.sinajs.cn/list="
+            "https://qt.gtimg.cn/q="
             +
             symbol
         )
 
 
-        headers = {
-
-            "Referer":
-            "https://finance.sina.com.cn",
-
-
-            "User-Agent":
-            "Mozilla/5.0"
-
-        }
-
-
         response = requests.get(
-
             url,
-
-            headers=headers,
-
             timeout=10
-
         )
 
 
         text = response.text
 
 
-        print(
-            "新浪返回:",
-            text
-        )
+        print("腾讯返回:", text)
 
 
-        parts = text.split('"')
+        data = text.split("~")
 
 
-        if len(parts) < 2:
-
-            print(
-                "新浪数据为空"
-            )
+        if len(data) < 6:
 
             return None, None
 
 
+        price = float(data[3])
 
-        data = parts[1].split(",")
-
-
-        if len(data) < 4:
-
-            print(
-                "新浪格式异常"
-            )
-
-            return None, None
-
-
-
-        price = float(
-            data[1]
-        )
-
-
-        yesterday = float(
-            data[2]
-        )
+        yesterday = float(data[4])
 
 
         change = round(
-
-            (price - yesterday)
-
+            (price-yesterday)
             /
-
             yesterday
-
             *
-
             100,
-
             2
-
         )
 
 
         return price, change
 
 
-
     except Exception as e:
 
-
-        print(
-
-            "指数行情失败:",
-
-            e
-
-        )
-
+        print("指数行情失败:", e)
 
         return None, None
-
 
 
 
