@@ -242,18 +242,25 @@ def get_index_data(code):
         )
 
 
-        text = response.text
+                text = response.text
 
+        print(
+            "腾讯返回:",
+            repr(text)
+        )
 
-	print("腾讯返回:", repr(text))
+        data = text.split("~")
 
+        print(
+            "字段数量:",
+            len(data)
+        )
 
-	data = text.split("~")
-
-	print("字段数量:", len(data))
-
-	print("字段内容:", data)
-
+        print(
+            "字段内容:",
+            data
+        )
+	
 
         if len(data) < 6:
 
