@@ -265,10 +265,13 @@ def get_index_data(code):
 
         headers = {
 
-            "Referer":
-            "https://finance.sina.com.cn"
+    "Referer":
+    "https://finance.sina.com.cn",
 
-        }
+    "User-Agent":
+    "Mozilla/5.0"
+
+     }
 
 
 
