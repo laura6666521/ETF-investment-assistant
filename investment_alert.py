@@ -234,36 +234,40 @@ def get_index_data(code):
 
     try:
 
-        df = ak.index_zh_a_hist(
-            symbol=code.replace(".CSI",""),
-            period="daily",
-            start_date="20260101",
-            end_date=china_time().strftime("%Y%m%d")
+        print(
+            "获取指数实时行情..."
         )
 
 
-        if len(df) == 0:
+        df = ak.stock_zh_index_spot()
+
+
+        if code == "000510.CSI":
+
+            symbol = "000510"
+
+
+        elif code == "000300.CSI":
+
+            symbol = "000300"
+
+
+        else:
 
             return None, None
 
 
-        # 只接受当天数据
 
-        last = df.iloc[-1]
-
-
-        date = str(last["日期"])
+        row = df[
+            df["代码"] == symbol
+        ]
 
 
-        today = china_time().strftime("%Y-%m-%d")
-
-
-        if date != today:
+        if len(row) == 0:
 
             print(
-                "指数无当天行情:",
-                code,
-                date
+                "没有找到指数:",
+                symbol
             )
 
             return None, None
@@ -271,31 +275,13 @@ def get_index_data(code):
 
 
         price = float(
-            last["收盘"]
+            row.iloc[0]["最新价"]
         )
 
 
-        if len(df) >= 2:
-
-
-            yesterday = float(
-                df.iloc[-2]["收盘"]
-            )
-
-
-            change = round(
-                (price-yesterday)
-                /
-                yesterday
-                *
-                100,
-                2
-            )
-
-        else:
-
-            change = 0
-
+        change = float(
+            row.iloc[0]["涨跌幅"]
+        )
 
 
         return price, change
@@ -306,13 +292,12 @@ def get_index_data(code):
 
 
         print(
-            "指数行情失败:",
+            "指数实时行情失败:",
             e
         )
 
 
         return None, None
-
 
 
 
