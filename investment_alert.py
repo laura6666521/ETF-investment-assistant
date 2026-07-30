@@ -240,7 +240,7 @@ def get_index_data(code):
 
 
         df = ak.stock_zh_index_spot()
-        
+        print(df.columns)
         if code == "000510.CSI":
 
             symbol = "000510"
@@ -258,8 +258,11 @@ def get_index_data(code):
 
 
         row = df[
-    df["代码"].astype(str).str.contains(symbol)
-        ]
+    df["代码"].astype(str).str.contains(
+        symbol,
+        na=False
+    )
+]
 
 
         if len(row) == 0:
