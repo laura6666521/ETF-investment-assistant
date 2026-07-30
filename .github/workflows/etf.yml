@@ -2,18 +2,10 @@ name: ETF Investment Assistant
 
 
 on:
-
   schedule:
-
-    # 北京时间11:00
     - cron: "0 3 * * 1-5"
-
-    # 北京时间14:30
     - cron: "30 6 * * 1-5"
-
-    # 北京时间18:00
     - cron: "0 10 * * 1-5"
-
 
   workflow_dispatch:
 
@@ -23,7 +15,6 @@ jobs:
   run-etf:
 
     runs-on: ubuntu-latest
-
 
     steps:
 
@@ -37,16 +28,9 @@ jobs:
           python-version: "3.10"
 
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip
-
-
       - name: Install packages
         run: |
-          pip install akshare requests pandas openpyxl
+          pip install akshare requests
 
 
       - name: Run ETF Assistant
