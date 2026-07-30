@@ -1,10 +1,17 @@
 name: ETF Investment Assistant
 
 on:
+
   schedule:
+
+    # 北京时间11:00
     - cron: "0 3 * * 1-5"
+
+    # 北京时间14:30
     - cron: "30 6 * * 1-5"
-    - cron: "0 10 * * 1-5"
+
+    # 北京时间19:15
+    - cron: "15 11 * * 1-5"
 
   workflow_dispatch:
 
