@@ -227,126 +227,75 @@ def get_etf_data(code):
 
     return None, None
 # =========================
-# 指数实时行情（新浪）
+# 指数实时行情（akshare）
 # =========================
 
 def get_index_data(code):
 
     try:
 
-
-        if code == "000510.CSI":
-
-            symbol = "sh000510"
-
-
-        elif code == "000300.CSI":
-
-            symbol = "sh000300"
+        df = ak.index_zh_a_hist(
+            symbol=code.replace(".CSI",""),
+            period="daily",
+            start_date="20260101",
+            end_date=china_time().strftime("%Y%m%d")
+        )
 
 
-        else:
-
-            print(
-                "未知指数代码:",
-                code
-            )
+        if len(df) == 0:
 
             return None, None
 
 
+        # 只接受当天数据
 
-        url = (
-            "https://hq.sinajs.cn/list="
-            +
-            symbol
-        )
+        last = df.iloc[-1]
 
 
-        headers = {
-
-    "Referer":
-    "https://finance.sina.com.cn",
-
-    "User-Agent":
-    "Mozilla/5.0"
-
-     }
+        date = str(last["日期"])
 
 
-
-        response = requests.get(
-
-            url,
-
-            headers=headers,
-
-            timeout=10
-
-        )
+        today = china_time().strftime("%Y-%m-%d")
 
 
-
-        text = response.text
-
-
-
-        if '"' not in text:
+        if date != today:
 
             print(
-                "新浪返回为空"
+                "指数无当天行情:",
+                code,
+                date
             )
-
-            return None, None
-
-
-
-        data = text.split('"')[1].split(",")
-
-
-
-        if len(data) < 4:
 
             return None, None
 
 
 
         price = float(
-
-            data[3]
-
+            last["收盘"]
         )
 
 
-        yesterday = float(
-
-            data[2]
-
-        )
+        if len(df) >= 2:
 
 
-
-        if yesterday == 0:
-
-            return None, None
-
+            yesterday = float(
+                df.iloc[-2]["收盘"]
+            )
 
 
-        change = round(
+            change = round(
+                (price-yesterday)
+                /
+                yesterday
+                *
+                100,
+                2
+            )
 
-            (price - yesterday)
+        else:
 
-            /
+            change = 0
 
-            yesterday
-
-            *
-
-            100,
-
-            2
-
-        )
 
 
         return price, change
@@ -357,11 +306,8 @@ def get_index_data(code):
 
 
         print(
-
-            "新浪指数行情失败:",
-
+            "指数行情失败:",
             e
-
         )
 
 
