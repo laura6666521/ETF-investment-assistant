@@ -242,38 +242,45 @@ def get_index_data(code):
         )
 
 
-                text = response.text
+        text = response.text
+
 
         print(
             "腾讯返回:",
             repr(text)
         )
 
+
         data = text.split("~")
+
 
         print(
             "字段数量:",
             len(data)
         )
 
-        print(
-            "字段内容:",
-            data
-        )
-	
 
         if len(data) < 6:
+
+            print(
+                "腾讯数据格式异常"
+            )
 
             return None, None
 
 
-        price = float(data[3])
+        price = float(
+            data[3]
+        )
 
-        yesterday = float(data[4])
+
+        yesterday = float(
+            data[4]
+        )
 
 
         change = round(
-            (price-yesterday)
+            (price - yesterday)
             /
             yesterday
             *
@@ -287,10 +294,13 @@ def get_index_data(code):
 
     except Exception as e:
 
-        print("指数行情失败:", e)
+        print(
+            "指数行情失败:",
+            e
+        )
+
 
         return None, None
-
 
 
 # =========================
