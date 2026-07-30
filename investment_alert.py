@@ -235,12 +235,12 @@ def get_index_data(code):
     try:
 
 
-        if code == "000510":
+        if code == "000510.CSI":
 
-            symbol = "sz000510"
+            symbol = "sh000510"
 
 
-        elif code == "000300":
+        elif code == "000300.CSI":
 
             symbol = "sh000300"
 
