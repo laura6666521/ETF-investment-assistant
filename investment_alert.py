@@ -216,21 +216,26 @@ def get_index_data(code):
         )
 
 
+        symbol_map = {
 
-        if code == "000510.CSI":
+            "000510.CSI": "sh000510",   # 中证A500
 
-            symbol = "sh000510"
+            "1B0300.SH": "sh000300"    # 沪深300
 
-
-        elif code == "000300.CSI":
-
-            symbol = "sh000300"
+        }
 
 
-        else:
+        if code not in symbol_map:
+
+            print(
+                "未知指数代码:",
+                code
+            )
 
             return None, None
 
+
+        symbol = symbol_map[code]
 
 
         url = (
@@ -238,7 +243,6 @@ def get_index_data(code):
             +
             symbol
         )
-
 
 
         headers = {
@@ -253,11 +257,14 @@ def get_index_data(code):
         }
 
 
-
         response = requests.get(
+
             url,
+
             headers=headers,
+
             timeout=10
+
         )
 
 
@@ -268,7 +275,6 @@ def get_index_data(code):
             "新浪返回:",
             text
         )
-
 
 
         parts = text.split('"')
@@ -285,7 +291,6 @@ def get_index_data(code):
 
 
         data = parts[1].split(",")
-
 
 
         if len(data) < 4:
@@ -308,14 +313,20 @@ def get_index_data(code):
         )
 
 
-
         change = round(
+
             (price - yesterday)
+
             /
+
             yesterday
+
             *
+
             100,
+
             2
+
         )
 
 
@@ -327,8 +338,11 @@ def get_index_data(code):
 
 
         print(
+
             "指数行情失败:",
+
             e
+
         )
 
 
