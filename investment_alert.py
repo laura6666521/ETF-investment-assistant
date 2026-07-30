@@ -227,7 +227,7 @@ def get_etf_data(code):
 
     return None, None
 # =========================
-# 指数实时行情（akshare）
+# 指数实时行情（新浪）
 # =========================
 
 def get_index_data(code):
@@ -239,16 +239,14 @@ def get_index_data(code):
         )
 
 
-        df = ak.stock_zh_index_spot()
-        print(df.columns)
         if code == "000510.CSI":
 
-            symbol = "000510"
+            symbol = "sh000510"
 
 
         elif code == "000300.CSI":
 
-            symbol = "000300"
+            symbol = "sh000300"
 
 
         else:
@@ -257,32 +255,89 @@ def get_index_data(code):
 
 
 
-        row = df[
-    df["代码"].astype(str).str.contains(
-        symbol,
-        na=False
-    )
-]
+        import time
+
+        url = (
+              "https://hq.sinajs.cn/list="
+              +
+    		symbol
+    		+
+    		"&_="
+    		+
+    		str(int(time.time()))
+	)
+
+        headers = {
+
+    		"Referer":
+    		"https://finance.sina.com.cn",
+
+   	 	"User-Agent":
+    		"Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+
+    		"Accept":
+    		"*/*"
+
+	}
 
 
-        if len(row) == 0:
+
+        response = requests.get(
+
+            url,
+
+            headers=headers,
+
+            timeout=10
+
+        )
+
+
+        text = response.text
+
+	print("新浪返回:", text)
+
+
+
+        if '"' not in text:
 
             print(
-                "没有找到指数:",
-                symbol
+                "新浪返回为空"
             )
 
             return None, None
 
 
 
-        price = float(
-            row.iloc[0]["最新价"]
-        )
+        data = text.split('"')[1].split(",")
 
 
-        change = float(
-            row.iloc[0]["涨跌幅"]
+        if len(data) < 4:
+            print("新浪数据格式异常")
+            return None, None
+
+
+        price = float(data[3])
+
+
+        yesterday = float(data[2])
+
+
+
+        change = round(
+
+            (price-yesterday)
+
+            /
+
+            yesterday
+
+            *
+
+            100,
+
+            2
+
         )
 
 
@@ -294,13 +349,12 @@ def get_index_data(code):
 
 
         print(
-            "指数实时行情失败:",
+            "指数行情失败:",
             e
         )
 
 
         return None, None
-
 
 
 # =========================
