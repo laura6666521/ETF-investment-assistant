@@ -14,6 +14,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # =============================================
+      # 缓存 record.json，实现跨运行防重复推送
+      # =============================================
+      - name: Cache record.json
+        uses: actions/cache@v4
+        with:
+          path: record.json
+          key: etf-record-${{ github.run_id }}
+          restore-keys: |
+            etf-record-
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
