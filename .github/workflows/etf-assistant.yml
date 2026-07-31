@@ -21,9 +21,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: record.json
-          key: etf-record-${{ github.run_id }}
+          key: etf-record-cache
           restore-keys: |
-            etf-record-
+            etf-record-cache
 
       - name: Setup Python
         uses: actions/setup-python@v5
