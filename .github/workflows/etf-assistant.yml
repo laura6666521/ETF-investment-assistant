@@ -1,7 +1,7 @@
 name: ETF Investment Assistant
 
 on:
-  workflow_dispatch:   # 由 cron-job.org 或手动触发
+  workflow_dispatch:   # cron-job.org 或手动触发
 
 permissions:
   contents: write       # 允许保存 record.json
@@ -11,28 +11,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 拉取代码
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Python环境
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
+      # 安装依赖
       - name: Install packages
         run: |
           python -m pip install --upgrade pip
           pip install akshare requests pandas
 
+      # 运行ETF助手
       - name: Run ETF Assistant
         env:
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
         run: |
           python investment_alert.py
 
-      # =============================================
-      # 保存 record.json，防止重复提醒
-      # =============================================
+      # 查看record状态
+      - name: Check record.json
+        run: |
+          ls -l record.json
+          git status
+
+      # 保存record.json变化
       - name: Save record.json
         run: |
           git config --global user.name "github-actions"
@@ -40,6 +48,6 @@ jobs:
 
           git add record.json
 
-          git commit -m "Update ETF record" || exit 0
+          git commit -m "Update ETF record" || echo "No record changes"
 
           git push
