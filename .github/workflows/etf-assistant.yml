@@ -4,7 +4,7 @@ on:
   workflow_dispatch:   # 由 cron-job.org 或手动触发
 
 permissions:
-  contents: read
+  contents: write       # 允许保存 record.json
 
 jobs:
   run:
@@ -13,17 +13,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      # =============================================
-      # 缓存 record.json，实现跨运行防重复推送
-      # =============================================
-      - name: Cache record.json
-        uses: actions/cache@v4
-        with:
-          path: record.json
-          key: etf-record-cache
-          restore-keys: |
-            etf-record-cache
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -40,3 +29,17 @@ jobs:
           SERVERCHAN_KEY: ${{ secrets.SERVERCHAN_KEY }}
         run: |
           python investment_alert.py
+
+      # =============================================
+      # 保存 record.json，防止重复提醒
+      # =============================================
+      - name: Save record.json
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+
+          git add record.json
+
+          git commit -m "Update ETF record" || exit 0
+
+          git push
