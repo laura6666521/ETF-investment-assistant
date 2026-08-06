@@ -2,7 +2,6 @@ import akshare as ak
 import requests
 import json
 import os
-import time
 
 from datetime import datetime, timezone, timedelta
 
@@ -12,11 +11,13 @@ from config import RULES
 RECORD_FILE = "record.json"
 
 
+
 # =========================
 # 北京时间
 # =========================
 
 def china_time():
+
     return (
         datetime.now(timezone.utc)
         +
@@ -24,8 +25,9 @@ def china_time():
     )
 
 
+
 # =========================
-# 记录文件
+# 记录
 # =========================
 
 def load_record():
@@ -110,6 +112,7 @@ def send_wechat(title, content):
     }
 
 
+
     try:
 
         r = requests.post(
@@ -125,6 +128,7 @@ def send_wechat(title, content):
                 "微信发送成功"
             )
 
+
         else:
 
             print(
@@ -139,6 +143,8 @@ def send_wechat(title, content):
             "微信异常:",
             e
         )
+
+
 
 
 
@@ -203,15 +209,18 @@ def get_etf_data(code):
 
 
 
+
 # =========================
-# 腾讯指数行情
+# 指数行情
 # =========================
 
 def get_index_data(code):
 
     try:
 
-        print("获取指数行情...")
+        print(
+            "获取指数行情..."
+        )
 
 
         if code == "000510.CSI":
@@ -229,6 +238,7 @@ def get_index_data(code):
             return None, None
 
 
+
         url = (
             "https://qt.gtimg.cn/q="
             +
@@ -242,31 +252,14 @@ def get_index_data(code):
         )
 
 
-        text = response.text
+        data = response.text.split("~")
 
-
-        print(
-            "腾讯返回:",
-            repr(text)
-        )
-
-
-        data = text.split("~")
-
-
-        print(
-            "字段数量:",
-            len(data)
-        )
 
 
         if len(data) < 6:
 
-            print(
-                "腾讯数据格式异常"
-            )
-
             return None, None
+
 
 
         price = float(
@@ -280,7 +273,7 @@ def get_index_data(code):
 
 
         change = round(
-            (price - yesterday)
+            (price-yesterday)
             /
             yesterday
             *
@@ -290,6 +283,7 @@ def get_index_data(code):
 
 
         return price, change
+
 
 
     except Exception as e:
@@ -303,8 +297,239 @@ def get_index_data(code):
         return None, None
 
 
+
 # =========================
-# 统一行情
+# 沪深300 PE
+# =========================
+
+def get_hs300_pe():
+
+    try:
+
+        print(
+            "获取沪深300 PE..."
+        )
+
+
+        data = ak.stock_index_pe_lg(
+            symbol="沪深300"
+        )
+
+
+        pe = float(
+            data.iloc[-1]["滚动市盈率"]
+        )
+
+
+        return pe
+
+
+
+    except Exception as e:
+
+        print(
+            "沪深300PE获取失败:",
+            e
+        )
+
+
+        return None
+
+
+# =========================
+# 伦敦金价格
+# =========================
+
+def get_gold_price():
+
+    try:
+
+        print(
+            "获取伦敦金价格..."
+        )
+
+
+        # 腾讯国际黄金现货
+        url = (
+            "https://qt.gtimg.cn/q=hf_GC"
+        )
+
+
+        response = requests.get(
+            url,
+            timeout=10
+        )
+
+
+        text = response.text
+
+
+        print(
+            "黄金返回:",
+            text
+        )
+
+
+        data_str = text.split('"')[1]
+
+        data = data_str.split(",")
+
+
+        # 美元/盎司
+        usd_price = float(
+            data[0]
+        )
+
+
+        change = float(
+            data[1]
+        )
+
+
+        return usd_price, change
+
+
+
+    except Exception as e:
+
+        print(
+            "黄金行情失败:",
+            e
+        )
+
+        return None, None
+
+
+# =========================
+# 美元人民币汇率
+# =========================
+
+def get_usdcny():
+
+    try:
+
+        print(
+            "获取美元人民币汇率..."
+        )
+
+
+        url = (
+            "https://hq.sinajs.cn/list=fx_susdcny"
+        )
+
+
+        headers = {
+            "Referer": "https://finance.sina.com.cn"
+        }
+
+
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=10
+        )
+
+
+        text = response.text
+
+
+        print(
+            "汇率返回:",
+            text
+        )
+
+
+        data_str = text.split('"')[1]
+
+
+        data = data_str.split(",")
+
+
+        # 美元人民币现价
+        rate = float(
+            data[1]
+        )
+
+
+        return rate
+
+
+
+    except Exception as e:
+
+
+        print(
+            "汇率获取失败:",
+            e
+        )
+
+
+        return None
+
+
+
+# =========================
+# 沪深300估值提醒
+# =========================
+
+def check_hs300_pe():
+
+
+    pe = get_hs300_pe()
+
+
+    if pe is None:
+
+        return
+
+
+
+    today = china_time().strftime(
+        "%Y-%m-%d"
+    )
+
+
+
+    key = "沪深300_PE提醒"
+
+
+
+    if pe > 15:
+
+
+        if record.get(key) == today:
+
+            return
+
+
+
+        send_wechat(
+
+            "⚠️ 沪深300估值提醒",
+
+            f"""
+沪深300滚动PE:
+
+{pe}
+
+超过15
+
+请关注估值风险。
+"""
+        )
+
+
+        record[key] = today
+
+        save_record(record)
+
+
+
+
+
+
+# =========================
+# 获取统一行情
 # =========================
 
 def get_price(info):
@@ -317,12 +542,23 @@ def get_price(info):
         )
 
 
-    else:
+    elif info["类型"] == "ETF":
 
         return get_etf_data(
             info["代码"]
         )
 
+
+    elif info["类型"] == "观察":
+
+        return get_etf_data(
+            info["代码"]
+        )
+
+
+    else:
+
+        return None, None
 
 
 
@@ -333,13 +569,14 @@ def get_price(info):
 def check_buy_signal(name, info):
 
 
-    if info["类型"] == "观察":
+    if info["类型"] != "ETF" and info["类型"] != "指数":
 
         return
 
 
 
     price, change = get_price(info)
+
 
 
     if price is None:
@@ -384,6 +621,8 @@ def check_buy_signal(name, info):
 
 
 
+        # 正式买点
+
         if price <= target:
 
 
@@ -412,6 +651,8 @@ def check_buy_signal(name, info):
 
 
 
+        # 2%提前提醒
+
         elif price <= target * 1.02:
 
 
@@ -427,6 +668,9 @@ def check_buy_signal(name, info):
 
 目标价格:
 {target}
+
+距离买点:
+{round((price-target)/target*100,2)}%
 """
             )
 
@@ -438,13 +682,21 @@ def check_buy_signal(name, info):
 
 
 
+
+
 # =========================
 # 日报
 # =========================
 
 def create_report():
 
+
     now = china_time()
+
+
+    today = now.strftime(
+        "%Y-%m-%d"
+    )
 
 
     report = f"""
@@ -461,11 +713,54 @@ def create_report():
     for name, info in RULES.items():
 
 
-        price, change = get_price(info)
+
+        # =========================
+        # 获取行情
+        # =========================
 
 
+        # 黄金单独处理
+
+        if info["类型"] == "黄金":
+
+
+            usd_price, change = get_gold_price()
+
+
+            rate = get_usdcny()
+
+
+            if usd_price is not None and rate is not None:
+
+
+                # 美元/盎司 转 人民币/克
+
+                price = round(
+                    usd_price * rate / 31.1035,
+                    2
+                )
+
+
+            else:
+
+                price = None
+
+
+
+        else:
+
+
+            price, change = get_price(info)
+
+
+
+
+        # =========================
+        # 行情失败
+        # =========================
 
         if price is None:
+
 
             report += f"""
 
@@ -480,12 +775,26 @@ def create_report():
 
 
 
+
+        # =========================
+        # 输出价格
+        # =========================
+
         report += f"""
 
 {name}
 
 价格:
 {price}
+
+"""
+
+
+
+        if change is not None:
+
+
+            report += f"""
 
 涨跌:
 {change}%
@@ -494,7 +803,13 @@ def create_report():
 
 
 
+
+        # =========================
+        # 观察类
+        # =========================
+
         if info["类型"] == "观察":
+
 
             report += """
 
@@ -504,25 +819,117 @@ def create_report():
 ----------------
 """
 
+
             continue
 
 
 
-        status = "等待买点"
+
+        # =========================
+        # 黄金类
+        # =========================
+
+        if info["类型"] == "黄金":
+
+
+            report += """
+
+状态:
+仅查看价格
+
+----------------
+"""
+
+
+            continue
+
+
+
+        # =========================
+        # ETF / 指数 买点判断
+        # =========================
+
+        status = "⏳ 等待买点"
 
 
 
         for rule in info["加仓规则"]:
 
-            if price <= rule["价格"]:
 
-                status = (
-                    "🚨 达到买点 "
-                    +
-                    str(rule["价格"])
-                )
+            target = rule["价格"]
+
+
+            key = (
+                name
+                +
+                "_"
+                +
+                str(target)
+            )
+
+
+
+            # 今天已经提醒过
+
+            if record.get(key) == today:
+
+
+                if price <= target:
+
+
+                    status = (
+                        "🚨 今日已达到买点 "
+                        +
+                        str(target)
+                    )
+
+
+                else:
+
+
+                    status = (
+                        "⚠️ 今日已接近买点 "
+                        +
+                        str(target)
+                    )
+
 
                 break
+
+
+
+
+            # 当前达到买点
+
+            if price <= target:
+
+
+                status = (
+                    "🚨 当前达到买点 "
+                    +
+                    str(target)
+                )
+
+
+                break
+
+
+
+
+            # 距离买点2%
+
+            elif price <= target * 1.02:
+
+
+                status = (
+                    "⚠️ 接近买点 "
+                    +
+                    str(target)
+                )
+
+
+                break
+
 
 
 
@@ -536,7 +943,32 @@ def create_report():
 
 
 
+    # =========================
+    # 沪深300 PE显示
+    # =========================
+
+    pe = get_hs300_pe()
+
+
+
+    if pe is not None:
+
+
+        report += f"""
+
+沪深300估值:
+
+滚动PE:
+{pe}
+
+----------------
+"""
+
+
+
     return report
+
+
 
 
 
@@ -548,12 +980,15 @@ def create_report():
 if __name__ == "__main__":
 
 
+
     now = china_time()
+
 
 
     print(
         "ETF投资助手启动"
     )
+
 
 
     print(
@@ -568,7 +1003,9 @@ if __name__ == "__main__":
     )
 
 
+
     for name, info in RULES.items():
+
 
         check_buy_signal(
             name,
@@ -577,9 +1014,22 @@ if __name__ == "__main__":
 
 
 
+
+    print(
+        "检查沪深300估值..."
+    )
+
+
+
+    check_hs300_pe()
+
+
+
+
     print(
         "生成日报..."
     )
+
 
 
     report = create_report()
@@ -587,6 +1037,7 @@ if __name__ == "__main__":
 
 
     print(report)
+
 
 
 
@@ -599,6 +1050,7 @@ if __name__ == "__main__":
         report
 
     )
+
 
 
 
